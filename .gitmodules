@@ -1,0 +1,4 @@
+[submodule "third_party/upstream"]
+	path = third_party/upstream
+	url = https://github.com/AtomicBot-ai/atomic-engine.git
+	branch = engine-development

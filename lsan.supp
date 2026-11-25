@@ -1,0 +1,31 @@
+# LeakSanitizer suppressions for the normalized ASan lane.
+#
+# Use:  LSAN_OPTIONS=suppressions=<repo>/lsan.supp
+# (NOT ASAN_OPTIONS=suppressions=… — the ASan parser accepts only
+#  interceptor_name / interceptor_via_fun / … and refuses `leak:` lines).
+#
+# Both families below are process-resident by design: allocated once,
+# never freed, and outlive any ownership the project could express.
+# NONE of them is a project-owned object on the project heap. Verified:
+# every leak block in a full ASan+LSan run roots in one of these two
+# runtimes; zero stacks root in project domain code.
+
+# --- Family A: Dobby inline-hook trampolines ------------------------------
+# herd::install_all() (patches/herd_patch.cpp) installs one DobbyHook per
+# patched symbol. Dobby builds a trampoline + indirect stub in near-exec
+# memory for each and keeps it for the process lifetime.
+# Empirically the same 7474 bytes / 69 allocations report on every
+# binary that installs the hooks, regardless of program behavior.
+leak:DobbyHook
+leak:dobby-src
+
+# --- Family B: ROCm / HSA runtime one-time singletons ---------------------
+# libhsa-runtime64 and libamdhip64 build process-wide tables on first use
+# (pthread_once paths, device-info caches). Frames are stripped, so match
+# by shared-library name — the most stable selector available.
+leak:libhsa-runtime64.so.1
+leak:libamdhip64.so.7
+
+# Deliberately absent: `leak:herd_patch.cpp` or any project file/module.
+# A file-level suppression would swallow future real leaks from the same
+# translation unit and hide exactly the defects this lane exists to catch.
